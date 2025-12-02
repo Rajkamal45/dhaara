@@ -6,15 +6,15 @@ export async function POST(request: Request) {
   try {
     const supabase = createClient()
 
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { data: adminProfile } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', session.user.id)
+      .eq('id', user.id)
       .single()
 
     if (adminProfile?.role !== 'admin') {
@@ -28,6 +28,7 @@ export async function POST(request: Request) {
       sku,
       category,
       price,
+      price_per_quantity,
       mrp,
       stock_quantity,
       unit,
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
     const isSuper = adminProfile.admin_role === 'super_admin'
     const finalRegionId = isSuper ? region_id : adminProfile.region_id
 
-    // Check if SKU already exists
+    // Check if SKU already exists in this region
     const { data: existingProduct } = await supabaseAdmin
       .from('products')
       .select('id')
@@ -68,6 +69,7 @@ export async function POST(request: Request) {
         sku,
         category,
         price,
+        price_per_quantity: price_per_quantity || 1,
         mrp: mrp || price,
         stock_quantity: stock_quantity || 0,
         unit: unit || 'piece',
@@ -96,15 +98,15 @@ export async function GET(request: Request) {
   try {
     const supabase = createClient()
 
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { data: adminProfile } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', session.user.id)
+      .eq('id', user.id)
       .single()
 
     if (adminProfile?.role !== 'admin') {

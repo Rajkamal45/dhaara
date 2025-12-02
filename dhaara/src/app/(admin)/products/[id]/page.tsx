@@ -1,19 +1,17 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
-import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
 import ProductForm from '@/components/admin/ProductForm'
 
 export default async function EditProductPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
 
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) redirect('/login')
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) redirect('/login')
 
   const { data: profile } = await supabase
     .from('profiles')
     .select('*')
-    .eq('id', session.user.id)
+    .eq('id', user.id)
     .single()
 
   if (profile?.role !== 'admin') redirect('/')
@@ -21,13 +19,13 @@ export default async function EditProductPage({ params }: { params: { id: string
   const isSuper = profile.admin_role === 'super_admin'
 
   // Fetch product
-  const { data: product } = await supabase
+  const { data: product, error: productError } = await supabase
     .from('products')
     .select('*')
     .eq('id', params.id)
     .single()
 
-  if (!product) {
+  if (productError || !product) {
     notFound()
   }
 
@@ -44,17 +42,10 @@ export default async function EditProductPage({ params }: { params: { id: string
     .order('name')
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-6">
       <div>
-        <Link
-          href="/admin/products"
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to products
-        </Link>
         <h1 className="text-3xl font-bold">Edit Product</h1>
-        <p className="text-muted-foreground">Update product details</p>
+        <p className="text-muted-foreground">Update product details for {product.name}</p>
       </div>
 
       <ProductForm

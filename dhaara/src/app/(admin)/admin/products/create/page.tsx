@@ -1,10 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
-import { redirect, notFound } from 'next/navigation'
+import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import ProductForm from '@/components/admin/ProductForm'
 
-export default async function EditProductPage({ params }: { params: { id: string } }) {
+export default async function CreateProductPage() {
   const supabase = createClient()
 
   const { data: { session } } = await supabase.auth.getSession()
@@ -19,22 +19,6 @@ export default async function EditProductPage({ params }: { params: { id: string
   if (profile?.role !== 'admin') redirect('/')
 
   const isSuper = profile.admin_role === 'super_admin'
-
-  // Fetch product
-  const { data: product } = await supabase
-    .from('products')
-    .select('*')
-    .eq('id', params.id)
-    .single()
-
-  if (!product) {
-    notFound()
-  }
-
-  // Regional admin can only edit products in their region
-  if (!isSuper && product.region_id !== profile.region_id) {
-    redirect('/admin/products')
-  }
 
   // Fetch regions
   const { data: regions } = await supabase
@@ -53,15 +37,14 @@ export default async function EditProductPage({ params }: { params: { id: string
           <ArrowLeft className="h-4 w-4" />
           Back to products
         </Link>
-        <h1 className="text-3xl font-bold">Edit Product</h1>
-        <p className="text-muted-foreground">Update product details</p>
+        <h1 className="text-3xl font-bold">Add New Product</h1>
+        <p className="text-muted-foreground">Create a new product in your catalog</p>
       </div>
 
       <ProductForm
         regions={regions || []}
         isSuper={isSuper}
         adminRegionId={profile.region_id}
-        product={product}
       />
     </div>
   )

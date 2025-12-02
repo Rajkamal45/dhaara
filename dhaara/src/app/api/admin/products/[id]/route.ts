@@ -2,16 +2,16 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 
-interface RouteParams {
-  params: { id: string }
-}
-
-export async function GET(request: Request, { params }: RouteParams) {
+// GET single product
+export async function GET(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
   try {
     const supabase = createClient()
 
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -32,26 +32,30 @@ export async function GET(request: Request, { params }: RouteParams) {
   }
 }
 
-export async function PUT(request: Request, { params }: RouteParams) {
+// UPDATE product
+export async function PUT(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
   try {
     const supabase = createClient()
 
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { data: adminProfile } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', session.user.id)
+      .eq('id', user.id)
       .single()
 
     if (adminProfile?.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Check if product exists and admin has access
+    // Check if product exists
     const { data: existingProduct } = await supabase
       .from('products')
       .select('*')
@@ -63,6 +67,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
     }
 
     const isSuper = adminProfile.admin_role === 'super_admin'
+    
+    // Regional admin can only edit products in their region
     if (!isSuper && existingProduct.region_id !== adminProfile.region_id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
@@ -74,6 +80,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
       sku,
       category,
       price,
+      price_per_quantity,
       mrp,
       stock_quantity,
       unit,
@@ -95,7 +102,8 @@ export async function PUT(request: Request, { params }: RouteParams) {
         sku,
         category,
         price,
-        mrp: mrp || price,
+        price_per_quantity: price_per_quantity || 1,
+        mrp: mrp || null,
         stock_quantity,
         unit,
         min_order_quantity,
@@ -121,19 +129,23 @@ export async function PUT(request: Request, { params }: RouteParams) {
   }
 }
 
-export async function PATCH(request: Request, { params }: RouteParams) {
+// PATCH - partial update (for toggling status)
+export async function PATCH(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
   try {
     const supabase = createClient()
 
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { data: adminProfile } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', session.user.id)
+      .eq('id', user.id)
       .single()
 
     if (adminProfile?.role !== 'admin') {
@@ -162,26 +174,30 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   }
 }
 
-export async function DELETE(request: Request, { params }: RouteParams) {
+// DELETE product
+export async function DELETE(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
   try {
     const supabase = createClient()
 
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const { data: adminProfile } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', session.user.id)
+      .eq('id', user.id)
       .single()
 
     if (adminProfile?.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Check if product exists and admin has access
+    // Check if product exists
     const { data: existingProduct } = await supabase
       .from('products')
       .select('*')
@@ -193,6 +209,8 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     }
 
     const isSuper = adminProfile.admin_role === 'super_admin'
+    
+    // Regional admin can only delete products in their region
     if (!isSuper && existingProduct.region_id !== adminProfile.region_id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
