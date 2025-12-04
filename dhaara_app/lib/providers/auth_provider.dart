@@ -140,6 +140,58 @@ class AuthProvider extends ChangeNotifier {
     await _loadUserProfile();
   }
 
+  Future<bool> updateProfile({
+    String? fullName,
+    String? phone,
+    String? businessName,
+    String? businessType,
+    String? gstin,
+    String? addressLine1,
+    String? addressLine2,
+    String? city,
+    String? state,
+    String? postalCode,
+    double? latitude,
+    double? longitude,
+  }) async {
+    _errorMessage = null;
+    try {
+      final updatedProfile = await _authService.updateUserProfile(
+        fullName: fullName,
+        phone: phone,
+        businessName: businessName,
+        businessType: businessType,
+        gstin: gstin,
+        addressLine1: addressLine1,
+        addressLine2: addressLine2,
+        city: city,
+        state: state,
+        postalCode: postalCode,
+        latitude: latitude,
+        longitude: longitude,
+      );
+      if (updatedProfile != null) {
+        _userProfile = updatedProfile;
+        notifyListeners();
+        return true;
+      }
+      _errorMessage = 'No changes were made';
+      notifyListeners();
+      return false;
+    } catch (e) {
+      print('Update profile error: $e');
+      if (e.toString().contains('permission') || e.toString().contains('policy')) {
+        _errorMessage = 'Permission denied. Please contact support.';
+      } else if (e.toString().contains('network') || e.toString().contains('connection')) {
+        _errorMessage = 'Network error. Please check your connection.';
+      } else {
+        _errorMessage = 'Failed to update profile: ${e.toString()}';
+      }
+      notifyListeners();
+      return false;
+    }
+  }
+
   void clearError() {
     _errorMessage = null;
     if (_status == AuthStatus.error) {

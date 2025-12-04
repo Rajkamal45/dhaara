@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../config/app_theme.dart';
+import 'edit_profile_screen.dart';
+import 'business_details_screen.dart';
+import 'address_screen.dart';
+import 'support_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -93,7 +97,10 @@ class ProfileScreen extends StatelessWidget {
                   icon: Icons.person_outline,
                   title: 'Edit Profile',
                   onTap: () {
-                    // TODO: Navigate to edit profile
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                    );
                   },
                 ),
                 _ProfileTile(
@@ -101,7 +108,10 @@ class ProfileScreen extends StatelessWidget {
                   title: 'Business Details',
                   subtitle: profile?.businessName,
                   onTap: () {
-                    // TODO: Navigate to business details
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const BusinessDetailsScreen()),
+                    );
                   },
                 ),
                 _ProfileTile(
@@ -111,21 +121,36 @@ class ProfileScreen extends StatelessWidget {
                       ? profile!.fullAddress
                       : null,
                   onTap: () {
-                    // TODO: Navigate to address
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AddressScreen()),
+                    );
                   },
                 ),
                 _ProfileTile(
                   icon: Icons.receipt_long_outlined,
                   title: 'Order History',
                   onTap: () {
-                    // TODO: Navigate to orders
+                    // Switch to Orders tab in MainShell (index 1)
+                    DefaultTabController.of(context);
+                    Navigator.of(context).popUntil((route) => route.isFirst);
+                    // Use a callback to switch tabs in MainShell
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Use the Orders tab below to view your orders'),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
                   },
                 ),
                 _ProfileTile(
                   icon: Icons.help_outline,
                   title: 'Help & Support',
                   onTap: () {
-                    // TODO: Navigate to support
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const SupportScreen()),
+                    );
                   },
                 ),
                 _ProfileTile(

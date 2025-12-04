@@ -10,10 +10,12 @@ class OrderService {
     required double subtotal,
     required String deliveryAddress,
     String? notes,
+    double? deliveryLatitude,
+    double? deliveryLongitude,
   }) async {
     try {
       // Create order
-      final orderResponse = await _supabase.from('orders').insert({
+      final orderData = <String, dynamic>{
         'user_id': userId,
         'status': 'pending',
         'subtotal': subtotal,
@@ -22,7 +24,17 @@ class OrderService {
         'delivery_address': deliveryAddress,
         'notes': notes,
         'region_id': items.first.regionId,
-      }).select('id').single();
+      };
+
+      // Add coordinates if available
+      if (deliveryLatitude != null) {
+        orderData['delivery_latitude'] = deliveryLatitude;
+      }
+      if (deliveryLongitude != null) {
+        orderData['delivery_longitude'] = deliveryLongitude;
+      }
+
+      final orderResponse = await _supabase.from('orders').insert(orderData).select('id').single();
 
       final orderId = orderResponse['id'];
 

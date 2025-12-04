@@ -73,21 +73,60 @@ class AuthService {
     String? city,
     String? state,
     String? postalCode,
+    double? latitude,
+    double? longitude,
   }) async {
     final user = currentUser;
     if (user == null) return null;
 
     final updates = <String, dynamic>{};
-    if (fullName != null) updates['full_name'] = fullName;
-    if (phone != null) updates['phone'] = phone;
-    if (businessName != null) updates['business_name'] = businessName;
-    if (businessType != null) updates['business_type'] = businessType;
-    if (gstin != null) updates['gstin'] = gstin;
-    if (addressLine1 != null) updates['address_line1'] = addressLine1;
-    if (addressLine2 != null) updates['address_line2'] = addressLine2;
-    if (city != null) updates['city'] = city;
-    if (state != null) updates['state'] = state;
-    if (postalCode != null) updates['postal_code'] = postalCode;
+
+    // Only add non-null and non-empty values to updates
+    if (fullName != null && fullName.isNotEmpty) {
+      updates['full_name'] = fullName;
+    }
+    if (phone != null && phone.isNotEmpty) {
+      updates['phone'] = phone;
+    }
+    if (businessName != null && businessName.isNotEmpty) {
+      updates['business_name'] = businessName;
+    }
+    if (businessType != null && businessType.isNotEmpty) {
+      updates['business_type'] = businessType;
+    }
+    if (gstin != null) {
+      // GSTIN can be empty (to clear it)
+      updates['gstin'] = gstin.isEmpty ? null : gstin;
+    }
+    if (addressLine1 != null && addressLine1.isNotEmpty) {
+      updates['address_line1'] = addressLine1;
+    }
+    if (addressLine2 != null) {
+      // Address line 2 is optional, can be empty
+      updates['address_line2'] = addressLine2.isEmpty ? null : addressLine2;
+    }
+    if (city != null && city.isNotEmpty) {
+      updates['city'] = city;
+    }
+    if (state != null && state.isNotEmpty) {
+      updates['state'] = state;
+    }
+    if (postalCode != null && postalCode.isNotEmpty) {
+      updates['postal_code'] = postalCode;
+    }
+    if (latitude != null) {
+      updates['latitude'] = latitude;
+    }
+    if (longitude != null) {
+      updates['longitude'] = longitude;
+    }
+
+    // Only proceed if there are actual updates
+    if (updates.isEmpty) {
+      // No changes to save, return current profile
+      return await getUserProfile();
+    }
+
     updates['updated_at'] = DateTime.now().toIso8601String();
 
     try {
@@ -100,6 +139,7 @@ class AuthService {
 
       return UserProfile.fromJson(response);
     } catch (e) {
+      print('Error updating profile: $e');
       rethrow;
     }
   }

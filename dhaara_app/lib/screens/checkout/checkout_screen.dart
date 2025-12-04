@@ -4,6 +4,8 @@ import '../../providers/cart_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/order_service.dart';
 import '../../config/app_theme.dart';
+import '../../widgets/map_location_picker.dart';
+import '../../widgets/location_search_field.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
@@ -14,10 +16,17 @@ class CheckoutScreen extends StatefulWidget {
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _addressController = TextEditingController();
+  final _streetAddressController = TextEditingController();
   final _notesController = TextEditingController();
   final _orderService = OrderService();
   bool _isLoading = false;
+  bool _showMap = false;
+  double? _deliveryLatitude;
+  double? _deliveryLongitude;
+  String? _city;
+  String? _state;
+  String? _postalCode;
+  bool _isLocationVerified = false;
 
   @override
   void initState() {
@@ -25,21 +34,101 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     // Pre-fill address from user profile
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final userProfile = context.read<AuthProvider>().userProfile;
-      if (userProfile != null && userProfile.fullAddress.isNotEmpty) {
-        _addressController.text = userProfile.fullAddress;
+      if (userProfile != null) {
+        // Load saved street address
+        _streetAddressController.text = userProfile.addressLine1 ?? '';
+
+        // Load saved location data
+        _deliveryLatitude = userProfile.latitude;
+        _deliveryLongitude = userProfile.longitude;
+        _city = userProfile.city;
+        _state = userProfile.state;
+        _postalCode = userProfile.postalCode;
+
+        // Mark as verified if we have location data
+        if (_deliveryLatitude != null && _deliveryLongitude != null && _city != null) {
+          _isLocationVerified = true;
+        }
+
+        setState(() {});
       }
     });
   }
 
   @override
   void dispose() {
-    _addressController.dispose();
+    _streetAddressController.dispose();
     _notesController.dispose();
     super.dispose();
   }
 
+  void _onLocationSearchSelected(LocationSuggestion suggestion) {
+    setState(() {
+      _deliveryLatitude = suggestion.latitude;
+      _deliveryLongitude = suggestion.longitude;
+      _city = suggestion.city;
+      _state = suggestion.state;
+      _postalCode = suggestion.postalCode;
+      _isLocationVerified = true;
+
+      // Auto-fill street if available and empty
+      if (suggestion.street != null && _streetAddressController.text.isEmpty) {
+        _streetAddressController.text = suggestion.street!;
+      }
+    });
+  }
+
+  void _onMapLocationSelected(LocationResult result) {
+    setState(() {
+      _deliveryLatitude = result.latitude;
+      _deliveryLongitude = result.longitude;
+
+      if (result.city != null && result.city!.isNotEmpty) {
+        _city = result.city;
+      }
+      if (result.state != null && result.state!.isNotEmpty) {
+        _state = result.state;
+      }
+      if (result.postalCode != null && result.postalCode!.isNotEmpty) {
+        _postalCode = result.postalCode;
+      }
+
+      // Mark as verified if we got city info
+      if (_city != null) {
+        _isLocationVerified = true;
+      }
+
+      // Auto-fill street if available and empty
+      if (result.address != null && _streetAddressController.text.isEmpty) {
+        _streetAddressController.text = result.address!;
+      }
+    });
+  }
+
+  String _buildFullAddress() {
+    final parts = <String>[];
+    if (_streetAddressController.text.trim().isNotEmpty) {
+      parts.add(_streetAddressController.text.trim());
+    }
+    if (_city != null) parts.add(_city!);
+    if (_state != null) parts.add(_state!);
+    if (_postalCode != null) parts.add(_postalCode!);
+    return parts.join(', ');
+  }
+
   Future<void> _placeOrder() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Validate location
+    if (!_isLocationVerified) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please verify your delivery location'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -50,10 +139,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       userId: auth.userProfile!.id,
       items: cart.items,
       subtotal: cart.subtotal,
-      deliveryAddress: _addressController.text.trim(),
+      deliveryAddress: _buildFullAddress(),
       notes: _notesController.text.trim().isEmpty
           ? null
           : _notesController.text.trim(),
+      deliveryLatitude: _deliveryLatitude,
+      deliveryLongitude: _deliveryLongitude,
     );
 
     setState(() => _isLoading = false);
@@ -187,25 +278,136 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Delivery Address
+                  // Delivery Location Section
                   Text(
-                    'Delivery Address',
+                    'Delivery Location',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
                   ),
                   const SizedBox(height: 12),
+
+                  // Location Search Field
+                  LocationSearchField(
+                    labelText: 'Search Delivery Area',
+                    hintText: 'Type area, locality or PIN code...',
+                    initialValue: _isLocationVerified && _city != null
+                        ? [_city, _state, _postalCode].where((e) => e != null).join(', ')
+                        : null,
+                    onLocationSelected: _onLocationSearchSelected,
+                    isRequired: true,
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Map Toggle Button
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      setState(() => _showMap = !_showMap);
+                    },
+                    icon: Icon(_showMap ? Icons.map_outlined : Icons.map, size: 18),
+                    label: Text(_showMap ? 'Hide Map' : 'Or Select on Map'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                    ),
+                  ),
+
+                  // Map Section
+                  if (_showMap) ...[
+                    const SizedBox(height: 12),
+                    MapLocationPicker(
+                      initialLatitude: _deliveryLatitude,
+                      initialLongitude: _deliveryLongitude,
+                      height: 220,
+                      showSearchBar: false,
+                      onLocationSelected: _onMapLocationSelected,
+                    ),
+                  ],
+
+                  // Verified Location Display (Read-Only from authenticated source)
+                  if (_isLocationVerified && _city != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.successColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppTheme.successColor.withOpacity(0.3)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.verified, color: AppTheme.successColor, size: 20),
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: Text(
+                                  'Verified Delivery Area',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.successColor,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.successColor.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text(
+                                  'AUTHENTIC',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppTheme.successColor,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            [_city, _state, _postalCode]
+                                .where((e) => e != null)
+                                .join(', '),
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'City, State & PIN auto-filled from verified location',
+                            style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 16),
+
+                  // Street Address (MANDATORY - user input)
                   TextFormField(
-                    controller: _addressController,
-                    maxLines: 3,
-                    decoration: const InputDecoration(
-                      hintText: 'Enter your delivery address',
-                      prefixIcon: Icon(Icons.location_on_outlined),
+                    controller: _streetAddressController,
+                    maxLines: 2,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: InputDecoration(
+                      labelText: 'Street Address / Building *',
+                      hintText: 'House No, Building Name, Street',
+                      prefixIcon: const Icon(Icons.home_outlined),
                       alignLabelWithHint: true,
+                      helperText: 'Enter complete street address (min 10 characters)',
+                      helperStyle: TextStyle(color: Colors.grey.shade600, fontSize: 10),
                     ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Please enter delivery address';
+                        return 'Street address is required';
+                      }
+                      if (value.trim().length < 10) {
+                        return 'Please enter complete address (min 10 characters)';
+                      }
+                      if (!RegExp(r'[a-zA-Z0-9]').hasMatch(value)) {
+                        return 'Please enter a valid street address';
                       }
                       return null;
                     },
@@ -238,6 +440,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       onPressed: _isLoading ? null : _placeOrder,
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
+                        backgroundColor: _isLocationVerified
+                            ? AppTheme.primaryColor
+                            : Colors.grey,
                       ),
                       child: _isLoading
                           ? const SizedBox(
@@ -248,12 +453,48 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 color: Colors.white,
                               ),
                             )
-                          : Text(
-                              'Place Order - ₹${cart.subtotal.toStringAsFixed(2)}',
-                              style: const TextStyle(fontSize: 16),
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                if (_isLocationVerified)
+                                  const Icon(Icons.check, size: 20)
+                                else
+                                  const Icon(Icons.warning_amber, size: 20),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _isLocationVerified
+                                      ? 'Place Order - ₹${cart.subtotal.toStringAsFixed(2)}'
+                                      : 'Verify Location First',
+                                  style: const TextStyle(fontSize: 16),
+                                ),
+                              ],
                             ),
                     ),
                   ),
+
+                  if (!_isLocationVerified) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.warningColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline, color: AppTheme.warningColor, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Please search and select a delivery location from suggestions to verify.',
+                              style: TextStyle(fontSize: 12, color: AppTheme.warningColor),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
                   const SizedBox(height: 16),
                 ],
               ),
