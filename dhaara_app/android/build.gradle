@@ -5,9 +5,21 @@ allprojects {
     }
 }
 
+// Define flutter extension for plugins that need it
+class FlutterExtension {
+    int compileSdkVersion = 34
+    int minSdkVersion = 21
+    int targetSdkVersion = 34
+    String ndkVersion = "25.1.8937393"
+}
+
 rootProject.buildDir = "../build"
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
+    // Only add flutter extension to plugin projects, not the main app
+    if (project.name != "app") {
+        project.extensions.create("flutter", FlutterExtension)
+    }
 }
 subprojects {
     project.evaluationDependsOn(":app")

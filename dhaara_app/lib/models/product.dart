@@ -45,14 +45,14 @@ class Product {
       sku: json['sku'],
       price: (json['price'] ?? json['base_price'] ?? 0).toDouble(),
       mrp: json['mrp']?.toDouble(),
-      pricePerQuantity: json['price_per_quantity'] ?? 1,
+      pricePerQuantity: (json['price_per_quantity'] ?? 1).toInt(),
       unit: json['unit'] ?? 'unit',
       imageUrl: json['image_url'],
       galleryUrls: json['gallery_urls'] != null
           ? List<String>.from(json['gallery_urls'])
           : null,
-      stockQuantity: json['stock_quantity'] ?? 0,
-      minOrderQuantity: json['min_order_quantity'],
+      stockQuantity: (json['stock_quantity'] ?? 0).toInt(),
+      minOrderQuantity: json['min_order_quantity']?.toInt(),
       category: json['category'],
       regionId: json['region_id'],
       regionName: json['region']?['name'],

@@ -24,10 +24,10 @@ class CartItem {
       id: json['id'],
       name: json['name'],
       price: (json['price'] ?? 0).toDouble(),
-      pricePerQuantity: json['price_per_quantity'] ?? 1,
+      pricePerQuantity: (json['price_per_quantity'] ?? 1).toInt(),
       unit: json['unit'] ?? 'unit',
       imageUrl: json['image_url'],
-      quantity: json['quantity'] ?? 1,
+      quantity: (json['quantity'] ?? 1).toInt(),
       regionId: json['region_id'],
     );
   }
