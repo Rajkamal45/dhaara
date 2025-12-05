@@ -21,7 +21,10 @@ class _OrdersScreenState extends State<OrdersScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    _loadOrders();
+    // Delay loading to avoid setState during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadOrders();
+    });
   }
 
   @override
@@ -30,10 +33,10 @@ class _OrdersScreenState extends State<OrdersScreen>
     super.dispose();
   }
 
-  void _loadOrders() {
+  Future<void> _loadOrders() async {
     final auth = context.read<AuthProvider>();
     if (auth.userProfile != null) {
-      context.read<OrderProvider>().loadOrders(auth.userProfile!.id);
+      await context.read<OrderProvider>().loadOrders(auth.userProfile!.id);
     }
   }
 
@@ -41,12 +44,29 @@ class _OrdersScreenState extends State<OrdersScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Orders'),
+        backgroundColor: AppTheme.primaryColor,
+        foregroundColor: Colors.white,
+        title: const Text(
+          'My Orders',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,
+          indicatorWeight: 3,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
+          labelStyle: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
+          ),
           tabs: const [
             Tab(text: 'Active'),
             Tab(text: 'Completed'),
@@ -101,9 +121,8 @@ class _OrdersScreenState extends State<OrdersScreen>
     }
 
     return RefreshIndicator(
-      onRefresh: () async {
-        _loadOrders();
-      },
+      onRefresh: _loadOrders,
+      color: AppTheme.primaryColor,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: orders.length,
@@ -141,22 +160,41 @@ class _OrdersScreenState extends State<OrdersScreen>
         subtitle = 'Your order history will appear here';
     }
 
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+    return RefreshIndicator(
+      onRefresh: _loadOrders,
+      color: AppTheme.primaryColor,
+      child: ListView(
         children: [
-          Icon(icon, size: 64, color: Colors.grey[400]),
-          const SizedBox(height: 16),
-          Text(
-            title,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: AppTheme.textSecondary,
-                ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            subtitle,
-            style: const TextStyle(color: AppTheme.textSecondary),
+          SizedBox(
+            height: MediaQuery.of(context).size.height * 0.6,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: 64, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: AppTheme.textSecondary,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(color: AppTheme.textSecondary),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Pull down to refresh',
+                    style: TextStyle(
+                      color: Colors.grey[400],
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),

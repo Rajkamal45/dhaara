@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/cart_provider.dart';
+import '../providers/auth_provider.dart';
+import '../providers/order_provider.dart';
 import 'home/home_screen.dart';
 import 'orders/orders_screen.dart';
 import 'profile/profile_screen.dart';
@@ -30,7 +32,16 @@ class _MainShellState extends State<MainShell> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
+        onTap: (index) {
+          setState(() => _currentIndex = index);
+          // Refresh orders when switching to Orders tab
+          if (index == 1) {
+            final auth = context.read<AuthProvider>();
+            if (auth.userProfile != null) {
+              context.read<OrderProvider>().loadOrders(auth.userProfile!.id);
+            }
+          }
+        },
         items: [
           const BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),

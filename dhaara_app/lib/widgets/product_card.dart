@@ -92,80 +92,78 @@ class ProductCard extends StatelessWidget {
             ),
           ),
           // Product Details
-          Expanded(
-            flex: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    product.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w500,
-                      fontSize: 13,
-                    ),
+          Padding(
+            padding: const EdgeInsets.all(8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  product.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
                   ),
-                  const Spacer(),
-                  // Price
-                  Row(
-                    children: [
-                      Text(
-                        product.displayPrice,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.primaryColor,
-                          fontSize: 14,
+                ),
+                const SizedBox(height: 4),
+                // Price
+                Row(
+                  children: [
+                    Text(
+                      product.displayPrice,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primaryColor,
+                        fontSize: 14,
+                      ),
+                    ),
+                    if (product.mrp != null && product.mrp! > product.price)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4),
+                        child: Text(
+                          '₹${product.mrp!.toStringAsFixed(0)}',
+                          style: const TextStyle(
+                            decoration: TextDecoration.lineThrough,
+                            color: AppTheme.textSecondary,
+                            fontSize: 11,
+                          ),
                         ),
                       ),
-                      if (product.mrp != null && product.mrp! > product.price)
-                        Padding(
-                          padding: const EdgeInsets.only(left: 4),
-                          child: Text(
-                            '₹${product.mrp!.toStringAsFixed(0)}',
-                            style: const TextStyle(
-                              decoration: TextDecoration.lineThrough,
-                              color: AppTheme.textSecondary,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  // Add to Cart Button
-                  Consumer<CartProvider>(
-                    builder: (context, cart, _) {
-                      final quantity = cart.getItemQuantity(product.id);
-                      if (quantity > 0) {
-                        return _QuantitySelector(
-                          quantity: quantity,
-                          onIncrement: () => cart.incrementQuantity(product.id),
-                          onDecrement: () => cart.decrementQuantity(product.id),
-                        );
-                      }
-                      return SizedBox(
-                        width: double.infinity,
-                        height: 32,
-                        child: ElevatedButton(
-                          onPressed: product.isOutOfStock
-                              ? null
-                              : () => cart.addItem(product),
-                          style: ElevatedButton.styleFrom(
-                            padding: EdgeInsets.zero,
-                          ),
-                          child: const Text(
-                            'Add',
-                            style: TextStyle(fontSize: 12),
-                          ),
-                        ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                // Add to Cart Button
+                Consumer<CartProvider>(
+                  builder: (context, cart, _) {
+                    final quantity = cart.getItemQuantity(product.id);
+                    if (quantity > 0) {
+                      return _QuantitySelector(
+                        quantity: quantity,
+                        onIncrement: () => cart.incrementQuantity(product.id),
+                        onDecrement: () => cart.decrementQuantity(product.id),
                       );
-                    },
-                  ),
-                ],
-              ),
+                    }
+                    return SizedBox(
+                      width: double.infinity,
+                      height: 32,
+                      child: ElevatedButton(
+                        onPressed: product.isOutOfStock
+                            ? null
+                            : () => cart.addItem(product),
+                        style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                        ),
+                        child: const Text(
+                          'Add',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
           ),
         ],

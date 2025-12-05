@@ -9,51 +9,93 @@ class OrderService {
     required List<CartItem> items,
     required double subtotal,
     required String deliveryAddress,
+    String? deliveryCity,
+    String? deliveryState,
+    String? deliveryPincode,
+    String? deliveryPhone,
     String? notes,
     double? deliveryLatitude,
     double? deliveryLongitude,
   }) async {
     try {
-      // Create order
+      if (items.isEmpty) {
+        print('Error: Cart is empty');
+        return null;
+      }
+
+      // Get region ID from first item, with fallback
+      final regionId = items.first.regionId;
+
+      // Generate order number (matching web app format)
+      final now = DateTime.now();
+      final orderNumber = 'ORD${now.year.toString().substring(2)}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}${(now.millisecond % 10000).toString().padLeft(4, '0')}';
+
+      // Create order matching actual database schema (separate columns, not JSON)
       final orderData = <String, dynamic>{
+        'order_number': orderNumber,
         'user_id': userId,
         'status': 'pending',
+        'payment_status': 'pending',
+        'payment_method': 'cod',
         'subtotal': subtotal,
-        'delivery_fee': 0,
-        'total': subtotal,
+        'total_amount': subtotal,
+        // Separate delivery fields to match actual DB schema
         'delivery_address': deliveryAddress,
-        'notes': notes,
-        'region_id': items.first.regionId,
+        'delivery_city': deliveryCity ?? '',
+        'delivery_state': deliveryState ?? '',
+        'delivery_pincode': deliveryPincode ?? '',
+        'delivery_phone': deliveryPhone ?? '',
+        'delivery_lat': deliveryLatitude,
+        'delivery_lng': deliveryLongitude,
+        'notes': notes ?? '',
       };
 
-      // Add coordinates if available
-      if (deliveryLatitude != null) {
-        orderData['delivery_latitude'] = deliveryLatitude;
-      }
-      if (deliveryLongitude != null) {
-        orderData['delivery_longitude'] = deliveryLongitude;
+      // Only add region_id if not empty
+      if (regionId.isNotEmpty) {
+        orderData['region_id'] = regionId;
       }
 
-      final orderResponse = await _supabase.from('orders').insert(orderData).select('id').single();
+      print('Creating order with data: $orderData');
 
-      final orderId = orderResponse['id'];
+      final orderResponse = await _supabase
+          .from('orders')
+          .insert(orderData)
+          .select('id, order_number')
+          .single();
 
-      // Create order items
-      final orderItems = items.map((item) => {
-        'order_id': orderId,
-        'product_id': item.id,
-        'product_name': item.name,
-        'quantity': item.quantity,
-        'unit_price': item.price / item.pricePerQuantity,
-        'total_price': item.itemTotal,
-        'unit': item.unit,
+      final orderId = orderResponse['id'] as String;
+      final createdOrderNumber = orderResponse['order_number'];
+      print('Order created with ID: $orderId, Order Number: $createdOrderNumber');
+
+      // Create order items matching actual DB schema
+      final orderItems = items.map((item) {
+        return {
+          'order_id': orderId,
+          'product_id': item.id,
+          'product_name': item.name,
+          'image_url': item.imageUrl,
+          'quantity': item.quantity,
+          'price': item.price,
+          'price_per_quantity': item.pricePerQuantity,
+          'unit': item.unit,
+          'total': item.itemTotal,
+        };
       }).toList();
 
+      print('Inserting order items: $orderItems');
+
       await _supabase.from('order_items').insert(orderItems);
+      print('Order items inserted successfully');
 
       return orderId;
-    } catch (e) {
+    } on PostgrestException catch (e) {
+      print('Database error placing order: ${e.message}');
+      print('Error code: ${e.code}');
+      print('Details: ${e.details}');
+      return null;
+    } catch (e, stackTrace) {
       print('Error placing order: $e');
+      print('Stack trace: $stackTrace');
       return null;
     }
   }
@@ -62,7 +104,7 @@ class OrderService {
     try {
       final response = await _supabase
           .from('orders')
-          .select('*, order_items(*)')
+          .select('*, order_items(*, product:product_id(name, image_url))')
           .eq('user_id', userId)
           .order('created_at', ascending: false);
 
@@ -77,7 +119,7 @@ class OrderService {
     try {
       final response = await _supabase
           .from('orders')
-          .select('*, order_items(*)')
+          .select('*, order_items(*, product:product_id(name, image_url))')
           .eq('id', orderId)
           .single();
 

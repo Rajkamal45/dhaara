@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../config/app_theme.dart';
 import '../../models/order.dart';
 import '../../providers/auth_provider.dart';
@@ -75,7 +76,16 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Order #${widget.order.shortId}'),
+        backgroundColor: AppTheme.primaryColor,
+        foregroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: Text(
+          'Order #${widget.order.shortId}',
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -345,49 +355,93 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
 
   Widget _buildOrderItem(OrderItem item) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Product Image
           Container(
-            width: 40,
-            height: 40,
+            width: 60,
+            height: 60,
             decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
+              color: AppTheme.backgroundColor,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.grey.shade200),
             ),
-            child: Center(
-              child: Text(
-                '${item.quantity}x',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.primaryColor,
-                ),
-              ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: item.imageUrl != null && item.imageUrl!.isNotEmpty
+                  ? CachedNetworkImage(
+                      imageUrl: item.imageUrl!,
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) => Center(
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppTheme.primaryColor.withOpacity(0.5),
+                        ),
+                      ),
+                      errorWidget: (_, __, ___) => const Icon(
+                        Icons.eco,
+                        color: AppTheme.primaryColor,
+                        size: 28,
+                      ),
+                    )
+                  : const Icon(
+                      Icons.eco,
+                      color: AppTheme.primaryColor,
+                      size: 28,
+                    ),
             ),
           ),
           const SizedBox(width: 12),
+          // Product Details
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   item.productName,
-                  style: const TextStyle(fontWeight: FontWeight.w500),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: AppTheme.textPrimary,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
+                const SizedBox(height: 4),
                 Text(
-                  'Rs. ${item.unitPrice.toStringAsFixed(2)} / ${item.unit}',
+                  'Rs. ${item.unitPrice.toStringAsFixed(0)} / ${item.unit}',
                   style: const TextStyle(
                     color: AppTheme.textSecondary,
                     fontSize: 13,
                   ),
                 ),
+                const SizedBox(height: 2),
+                Text(
+                  'Qty: ${item.quantity}',
+                  style: TextStyle(
+                    color: AppTheme.primaryColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ],
             ),
           ),
-          Text(
-            'Rs. ${item.totalPrice.toStringAsFixed(2)}',
-            style: const TextStyle(fontWeight: FontWeight.bold),
+          // Total Price
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                'Rs. ${item.totalPrice.toStringAsFixed(0)}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+            ],
           ),
         ],
       ),

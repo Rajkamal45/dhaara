@@ -1,8 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
-import L from 'leaflet'
-import 'leaflet/dist/leaflet.css'
+import { useEffect, useRef, useState } from 'react'
 
 interface MapComponentProps {
   center: [number, number]
@@ -17,57 +15,61 @@ interface MapComponentProps {
   }>
 }
 
-// Fix Leaflet default marker icon issue
-const defaultIcon = L.icon({
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-})
+// Icon creation functions - called only after L is loaded
+function createIcons(L: typeof import('leaflet')) {
+  const defaultIcon = L.icon({
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+  })
 
-const redIcon = L.icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-})
+  const redIcon = L.icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+  })
 
-const greenIcon = L.icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-})
+  const greenIcon = L.icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+  })
 
-const blueIcon = L.icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-})
+  const blueIcon = L.icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+  })
 
-const orangeIcon = L.icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-})
+  const orangeIcon = L.icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+  })
 
-export default function MapComponent({ 
-  center, 
-  zoom, 
-  marker, 
+  return { defaultIcon, redIcon, greenIcon, blueIcon, orangeIcon }
+}
+
+export default function MapComponent({
+  center,
+  zoom,
+  marker,
   onMapClick,
   markers = []
 }: MapComponentProps) {
@@ -75,9 +77,37 @@ export default function MapComponent({
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const markerRef = useRef<L.Marker | null>(null)
   const markersLayerRef = useRef<L.LayerGroup | null>(null)
+  const leafletRef = useRef<typeof import('leaflet') | null>(null)
+  const iconsRef = useRef<ReturnType<typeof createIcons> | null>(null)
+  const [isLoaded, setIsLoaded] = useState(false)
 
+  // Load Leaflet dynamically
   useEffect(() => {
-    if (!mapContainerRef.current || mapRef.current) return
+    let mounted = true
+
+    async function loadLeaflet() {
+      const L = await import('leaflet')
+      await import('leaflet/dist/leaflet.css')
+
+      if (!mounted) return
+
+      leafletRef.current = L
+      iconsRef.current = createIcons(L)
+      setIsLoaded(true)
+    }
+
+    loadLeaflet()
+
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  // Initialize map after Leaflet is loaded
+  useEffect(() => {
+    if (!isLoaded || !mapContainerRef.current || mapRef.current) return
+
+    const L = leafletRef.current!
 
     // Initialize map
     mapRef.current = L.map(mapContainerRef.current).setView(center, zoom)
@@ -103,7 +133,7 @@ export default function MapComponent({
         mapRef.current = null
       }
     }
-  }, [])
+  }, [isLoaded])
 
   // Update center and zoom
   useEffect(() => {
@@ -114,7 +144,10 @@ export default function MapComponent({
 
   // Update single marker
   useEffect(() => {
-    if (!mapRef.current) return
+    if (!mapRef.current || !iconsRef.current) return
+
+    const L = leafletRef.current!
+    const { defaultIcon } = iconsRef.current
 
     if (markerRef.current) {
       markerRef.current.remove()
@@ -125,11 +158,14 @@ export default function MapComponent({
         .addTo(mapRef.current)
         .bindPopup('Delivery Location')
     }
-  }, [marker])
+  }, [marker, isLoaded])
 
   // Update multiple markers
   useEffect(() => {
-    if (!mapRef.current || !markersLayerRef.current) return
+    if (!mapRef.current || !markersLayerRef.current || !iconsRef.current) return
+
+    const L = leafletRef.current!
+    const { defaultIcon, redIcon, greenIcon, blueIcon, orangeIcon } = iconsRef.current
 
     markersLayerRef.current.clearLayers()
 
@@ -141,13 +177,13 @@ export default function MapComponent({
         case 'blue': icon = blueIcon; break
         case 'orange': icon = orangeIcon; break
       }
-      
+
       const markerInstance = L.marker([m.lat, m.lng], { icon })
-      
+
       if (m.popup) {
         markerInstance.bindPopup(m.popup)
       }
-      
+
       markersLayerRef.current?.addLayer(markerInstance)
     })
 
@@ -156,11 +192,22 @@ export default function MapComponent({
       const bounds = L.latLngBounds(markers.map(m => [m.lat, m.lng]))
       mapRef.current.fitBounds(bounds, { padding: [50, 50] })
     }
-  }, [markers])
+  }, [markers, isLoaded])
+
+  if (!isLoaded) {
+    return (
+      <div
+        className="h-full w-full rounded-lg bg-gray-100 flex items-center justify-center"
+        style={{ minHeight: '300px' }}
+      >
+        <div className="animate-spin h-8 w-8 border-4 border-purple-600 border-t-transparent rounded-full" />
+      </div>
+    )
+  }
 
   return (
-    <div 
-      ref={mapContainerRef} 
+    <div
+      ref={mapContainerRef}
       className="h-full w-full rounded-lg"
       style={{ minHeight: '300px', zIndex: 0 }}
     />

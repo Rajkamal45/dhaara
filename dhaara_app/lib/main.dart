@@ -8,6 +8,7 @@ import 'providers/auth_provider.dart';
 import 'providers/product_provider.dart';
 import 'providers/cart_provider.dart';
 import 'providers/order_provider.dart';
+import 'providers/address_provider.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/main_shell.dart';
 import 'screens/cart/cart_screen.dart';
@@ -34,6 +35,7 @@ class DhaaraApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ProductProvider()),
         ChangeNotifierProvider(create: (_) => CartProvider()),
         ChangeNotifierProvider(create: (_) => OrderProvider()),
+        ChangeNotifierProvider(create: (_) => AddressProvider()),
       ],
       child: MaterialApp(
         title: 'Dhaara',

@@ -54,7 +54,7 @@ class Product {
       stockQuantity: (json['stock_quantity'] ?? 0).toInt(),
       minOrderQuantity: json['min_order_quantity']?.toInt(),
       category: json['category'],
-      regionId: json['region_id'],
+      regionId: json['region_id'] ?? '',
       regionName: json['region']?['name'],
       isActive: json['is_active'] ?? true,
       isFeatured: json['is_featured'] ?? false,
