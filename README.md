@@ -650,7 +650,7 @@ MIT License - see LICENSE file for details.
 
 ## Contributors
 
-Built with by the Dhaara Team
+Built by Rajkamal Kaushal
 
 ---
 
