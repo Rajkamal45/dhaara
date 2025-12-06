@@ -26,22 +26,32 @@ class OrderItem {
   });
 
   factory OrderItem.fromJson(Map<String, dynamic> json) {
-    // Try to get product info from nested product object or direct fields
-    final product = json['product'] as Map<String, dynamic>?;
+    // Web app uses nested product:products (name, image_url)
+    // The result comes as 'product' object with 'name' and 'image_url'
+    final product = json['product'];
+    String? productName;
+    String? productImageUrl;
+
+    // Handle product being a Map or null
+    if (product is Map<String, dynamic>) {
+      productName = product['name']?.toString();
+      productImageUrl = product['image_url']?.toString();
+    }
 
     return OrderItem(
       id: json['id']?.toString() ?? '',
       orderId: json['order_id']?.toString() ?? '',
       productId: json['product_id']?.toString() ?? '',
+      // Priority: product_name field > nested product.name > fallback
       productName: json['product_name']?.toString() ??
-                   product?['name']?.toString() ??
-                   'Unknown Product',
-      imageUrl: json['image_url']?.toString() ??
-                product?['image_url']?.toString(),
+                   productName ??
+                   'Product',
+      // Priority: image_url field > nested product.image_url
+      imageUrl: json['image_url']?.toString() ?? productImageUrl,
       quantity: _toInt(json['quantity']),
-      price: _toDouble(json['price'] ?? json['unit_price']),
+      price: _toDouble(json['price']),
       pricePerQuantity: _toInt(json['price_per_quantity'] ?? 1),
-      total: _toDouble(json['total'] ?? json['total_price']),
+      total: _toDouble(json['total']),
       unit: json['unit']?.toString() ?? 'unit',
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'].toString())

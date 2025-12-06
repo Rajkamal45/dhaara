@@ -28,9 +28,10 @@ class OrderService {
 
       // Generate order number (matching web app format)
       final now = DateTime.now();
-      final orderNumber = 'ORD${now.year.toString().substring(2)}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}${(now.millisecond % 10000).toString().padLeft(4, '0')}';
+      final random = (now.millisecondsSinceEpoch % 10000).toString().padLeft(4, '0');
+      final orderNumber = 'ORD${now.year.toString().substring(2)}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}$random';
 
-      // Create order matching actual database schema (separate columns, not JSON)
+      // Create order matching web app schema exactly
       final orderData = <String, dynamic>{
         'order_number': orderNumber,
         'user_id': userId,
@@ -39,7 +40,6 @@ class OrderService {
         'payment_method': 'cod',
         'subtotal': subtotal,
         'total_amount': subtotal,
-        // Separate delivery fields to match actual DB schema
         'delivery_address': deliveryAddress,
         'delivery_city': deliveryCity ?? '',
         'delivery_state': deliveryState ?? '',
@@ -67,18 +67,20 @@ class OrderService {
       final createdOrderNumber = orderResponse['order_number'];
       print('Order created with ID: $orderId, Order Number: $createdOrderNumber');
 
-      // Create order items matching actual DB schema
+      // Create order items matching web app schema exactly
+      // Web app only uses: order_id, product_id, quantity, price, price_per_quantity, unit, total
       final orderItems = items.map((item) {
+        final itemPrice = item.price;
+        final itemPricePerQty = item.pricePerQuantity > 0 ? item.pricePerQuantity : 1;
+        final itemTotal = (itemPrice / itemPricePerQty) * item.quantity;
         return {
           'order_id': orderId,
           'product_id': item.id,
-          'product_name': item.name,
-          'image_url': item.imageUrl,
           'quantity': item.quantity,
-          'price': item.price,
-          'price_per_quantity': item.pricePerQuantity,
+          'price': itemPrice,
+          'price_per_quantity': itemPricePerQty,
           'unit': item.unit,
-          'total': item.itemTotal,
+          'total': itemTotal,
         };
       }).toList();
 
@@ -102,13 +104,35 @@ class OrderService {
 
   Future<List<Map<String, dynamic>>> getOrders(String userId) async {
     try {
+      // Match web app query exactly with product join
       final response = await _supabase
           .from('orders')
-          .select('*, order_items(*, product:product_id(name, image_url))')
+          .select('''
+            *,
+            order_items (
+              *,
+              product:products (name, image_url)
+            )
+          ''')
           .eq('user_id', userId)
           .order('created_at', ascending: false);
 
       return List<Map<String, dynamic>>.from(response);
+    } on PostgrestException catch (e) {
+      print('Error fetching orders: ${e.message}');
+      print('Code: ${e.code}, Details: ${e.details}');
+      // Fallback: try without product join
+      try {
+        final response = await _supabase
+            .from('orders')
+            .select('*, order_items(*)')
+            .eq('user_id', userId)
+            .order('created_at', ascending: false);
+        return List<Map<String, dynamic>>.from(response);
+      } catch (e2) {
+        print('Fallback also failed: $e2');
+        return [];
+      }
     } catch (e) {
       print('Error fetching orders: $e');
       return [];
@@ -119,11 +143,31 @@ class OrderService {
     try {
       final response = await _supabase
           .from('orders')
-          .select('*, order_items(*, product:product_id(name, image_url))')
+          .select('''
+            *,
+            order_items (
+              *,
+              product:products (name, image_url)
+            )
+          ''')
           .eq('id', orderId)
           .single();
 
       return response;
+    } on PostgrestException catch (e) {
+      print('Error fetching order: ${e.message}');
+      // Fallback without product join
+      try {
+        final response = await _supabase
+            .from('orders')
+            .select('*, order_items(*)')
+            .eq('id', orderId)
+            .single();
+        return response;
+      } catch (e2) {
+        print('Fallback also failed: $e2');
+        return null;
+      }
     } catch (e) {
       print('Error fetching order: $e');
       return null;
