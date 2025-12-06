@@ -209,10 +209,58 @@ export async function DELETE(
     }
 
     const isSuper = adminProfile.admin_role === 'super_admin'
-    
+
     // Regional admin can only delete products in their region
     if (!isSuper && existingProduct.region_id !== adminProfile.region_id) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    // Check if product has any active (non-delivered/non-cancelled) orders
+    const { data: activeOrderItems, error: orderCheckError } = await supabaseAdmin
+      .from('order_items')
+      .select(`
+        id,
+        order:orders!inner (
+          id,
+          status
+        )
+      `)
+      .eq('product_id', params.id)
+
+    if (orderCheckError) {
+      console.error('Order check error:', orderCheckError)
+    }
+
+    // Filter for orders that are NOT delivered or cancelled
+    const pendingOrders = (activeOrderItems || []).filter((item: any) => {
+      const status = item.order?.status
+      return status && !['delivered', 'cancelled', 'refunded'].includes(status)
+    })
+
+    if (pendingOrders.length > 0) {
+      return NextResponse.json({
+        error: `Cannot delete product. It has ${pendingOrders.length} pending order(s). Wait until all orders are delivered or deactivate it instead.`
+      }, { status: 400 })
+    }
+
+    // Remove product reference from completed order items (set to NULL)
+    // This preserves order history while allowing product deletion
+    if (activeOrderItems && activeOrderItems.length > 0) {
+      const { error: updateError } = await supabaseAdmin
+        .from('order_items')
+        .update({
+          product_id: null,
+          product_name: existingProduct.name,
+          product_image: existingProduct.image_url
+        })
+        .eq('product_id', params.id)
+
+      if (updateError) {
+        console.error('Error updating order items:', updateError)
+        return NextResponse.json({
+          error: 'Failed to update order history before deletion'
+        }, { status: 500 })
+      }
     }
 
     // Delete product
@@ -223,6 +271,12 @@ export async function DELETE(
 
     if (error) {
       console.error('Product delete error:', error)
+      // Check for foreign key constraint error
+      if (error.code === '23503') {
+        return NextResponse.json({
+          error: 'Cannot delete product. It is referenced in other records. Deactivate it instead.'
+        }, { status: 400 })
+      }
       return NextResponse.json({ error: 'Failed to delete product' }, { status: 500 })
     }
 

@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import { Package, Clock, CheckCircle, Truck, XCircle, PackageCheck } from 'lucide-react'
 import AdminOrdersTable from '@/components/admin/AdminOrdersTable'
@@ -72,8 +73,8 @@ let query = supabase
         .eq('id', order.region_id)
         .single() : { data: null }
 
-      // Get order items
-      const { data: orderItems } = await supabase
+      // Get order items using admin client to bypass RLS
+      const { data: orderItems } = await supabaseAdmin
         .from('order_items')
         .select(`
           id,
@@ -85,15 +86,15 @@ let query = supabase
         `)
         .eq('order_id', order.id)
 
-      // Get product details for items
+      // Get product details for items using admin client
       const itemsWithProducts = await Promise.all(
         (orderItems || []).map(async (item) => {
-          const { data: product } = item.product_id ? await supabase
+          const { data: product } = item.product_id ? await supabaseAdmin
             .from('products')
             .select('name, image_url')
             .eq('id', item.product_id)
             .single() : { data: null }
-          
+
           return { ...item, product }
         })
       )
