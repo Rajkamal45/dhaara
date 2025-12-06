@@ -15,7 +15,8 @@ import {
   Menu,
   X,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  FileText
 } from 'lucide-react'
 
 interface LogisticsLayoutClientProps {
@@ -55,9 +56,9 @@ export default function LogisticsLayoutClient({
       icon: MapPin,
     },
     {
-      href: '/logistics/completed',
-      label: 'Completed',
-      icon: CheckCircle,
+      href: '/logistics/history',
+      label: 'History & Invoices',
+      icon: FileText,
     },
   ]
 

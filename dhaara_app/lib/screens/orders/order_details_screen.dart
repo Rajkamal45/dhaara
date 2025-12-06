@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_theme.dart';
 import '../../models/order.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/order_provider.dart';
+import '../../config/supabase_config.dart';
 
 class OrderDetailsScreen extends StatefulWidget {
   final Order order;
@@ -112,6 +114,9 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
 
             // Cancel Button
             if (widget.order.status.canCancel) _buildCancelButton(),
+
+            // Invoice Button (show for delivered orders)
+            if (widget.order.status == OrderStatus.delivered) _buildInvoiceButton(),
 
             const SizedBox(height: 24),
           ],
@@ -613,6 +618,50 @@ class _OrderDetailsScreenState extends State<OrderDetailsScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildInvoiceButton() {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: _openInvoice,
+        icon: const Icon(Icons.receipt_long),
+        label: const Text('View Invoice'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppTheme.primaryColor,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openInvoice() async {
+    final invoiceUrl = Uri.parse('${SupabaseConfig.webAppUrl}/invoice/${widget.order.id}');
+    try {
+      if (await canLaunchUrl(invoiceUrl)) {
+        await launchUrl(invoiceUrl, mode: LaunchMode.externalApplication);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not open invoice. Please try again.'),
+              backgroundColor: AppTheme.errorColor,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error opening invoice: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    }
   }
 
   Color _getStatusColor() {

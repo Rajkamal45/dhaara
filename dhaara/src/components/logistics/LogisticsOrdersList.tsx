@@ -12,9 +12,11 @@ import {
   Navigation,
   Loader2,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  FileText
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import Link from 'next/link'
 
 interface OrderItem {
   id: string
@@ -290,6 +292,17 @@ export default function LogisticsOrdersList({ orders }: LogisticsOrdersListProps
                     <Phone className="h-4 w-4" />
                     Call Customer
                   </a>
+
+                  {order.status === 'delivered' && (
+                    <Link
+                      href={`/invoice/${order.id}`}
+                      target="_blank"
+                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                    >
+                      <FileText className="h-4 w-4" />
+                      Download Invoice
+                    </Link>
+                  )}
 
                   <div className="flex-1" />
 

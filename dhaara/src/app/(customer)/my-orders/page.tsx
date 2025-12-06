@@ -4,16 +4,17 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { 
-  Package, 
-  ArrowRight, 
-  Clock, 
-  CheckCircle, 
-  Truck, 
-  XCircle, 
+import {
+  Package,
+  ArrowRight,
+  Clock,
+  CheckCircle,
+  Truck,
+  XCircle,
   PackageCheck,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  FileText
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/useToast'
@@ -272,6 +273,22 @@ export default function MyOrdersPage() {
                       </span>
                     </p>
                   </div>
+
+                  {/* Download Invoice Button - Only for delivered orders */}
+                  {order.status === 'delivered' && (
+                    <div className="mt-4 pt-4 border-t">
+                      <Link href={`/invoice/${order.id}`} target="_blank">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-green-600 border-green-200 hover:bg-green-50"
+                        >
+                          <FileText className="h-4 w-4 mr-2" />
+                          Download Invoice
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
 
                   {/* Cancel Button */}
                   {canCancel && (

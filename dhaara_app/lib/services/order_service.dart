@@ -4,7 +4,7 @@ import '../models/cart_item.dart';
 class OrderService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  Future<String?> placeOrder({
+  Future<Map<String, dynamic>> placeOrder({
     required String userId,
     required List<CartItem> items,
     required double subtotal,
@@ -20,7 +20,14 @@ class OrderService {
     try {
       if (items.isEmpty) {
         print('Error: Cart is empty');
-        return null;
+        return {'success': false, 'error': 'Cart is empty'};
+      }
+
+      // Check authentication
+      final user = _supabase.auth.currentUser;
+      if (user == null) {
+        print('Error: User not authenticated');
+        return {'success': false, 'error': 'Please login to place order'};
       }
 
       // Get region ID from first item, with fallback
@@ -47,12 +54,27 @@ class OrderService {
         'delivery_phone': deliveryPhone ?? '',
         'delivery_lat': deliveryLatitude,
         'delivery_lng': deliveryLongitude,
+        'location_verified': deliveryLatitude != null,
         'notes': notes ?? '',
       };
 
-      // Only add region_id if not empty
+      // Add region_id - try from cart items first, then from user profile
       if (regionId.isNotEmpty) {
         orderData['region_id'] = regionId;
+      } else {
+        // Try to get region from user profile
+        try {
+          final profileResponse = await _supabase
+              .from('profiles')
+              .select('region_id')
+              .eq('id', userId)
+              .single();
+          if (profileResponse['region_id'] != null) {
+            orderData['region_id'] = profileResponse['region_id'];
+          }
+        } catch (e) {
+          print('Could not get region from profile: $e');
+        }
       }
 
       print('Creating order with data: $orderData');
@@ -63,12 +85,19 @@ class OrderService {
           .select('id, order_number')
           .single();
 
-      final orderId = orderResponse['id'] as String;
-      final createdOrderNumber = orderResponse['order_number'];
+      print('Order response: $orderResponse');
+
+      final orderId = orderResponse['id']?.toString();
+      final createdOrderNumber = orderResponse['order_number']?.toString();
+
+      if (orderId == null || orderId.isEmpty) {
+        print('Error: Order created but no ID returned');
+        return {'success': false, 'error': 'Order creation failed - no ID returned'};
+      }
+
       print('Order created with ID: $orderId, Order Number: $createdOrderNumber');
 
       // Create order items matching web app schema exactly
-      // Web app only uses: order_id, product_id, quantity, price, price_per_quantity, unit, total
       final orderItems = items.map((item) {
         final itemPrice = item.price;
         final itemPricePerQty = item.pricePerQuantity > 0 ? item.pricePerQuantity : 1;
@@ -86,19 +115,38 @@ class OrderService {
 
       print('Inserting order items: $orderItems');
 
-      await _supabase.from('order_items').insert(orderItems);
-      print('Order items inserted successfully');
+      try {
+        await _supabase.from('order_items').insert(orderItems);
+        print('Order items inserted successfully');
+      } catch (itemError) {
+        print('Warning: Order items insert failed: $itemError');
+        // Order was created, items failed - still return success but log warning
+      }
 
-      return orderId;
+      return {'success': true, 'orderId': orderId, 'orderNumber': createdOrderNumber ?? orderNumber};
     } on PostgrestException catch (e) {
       print('Database error placing order: ${e.message}');
       print('Error code: ${e.code}');
       print('Details: ${e.details}');
-      return null;
+
+      // Handle specific RLS error
+      if (e.code == '42501' || e.message.contains('policy')) {
+        return {
+          'success': false,
+          'error': 'Permission denied. Please check your KYC status.',
+          'code': e.code
+        };
+      }
+
+      return {
+        'success': false,
+        'error': e.message,
+        'code': e.code
+      };
     } catch (e, stackTrace) {
       print('Error placing order: $e');
       print('Stack trace: $stackTrace');
-      return null;
+      return {'success': false, 'error': e.toString()};
     }
   }
 

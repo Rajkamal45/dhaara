@@ -55,7 +55,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     final cart = context.read<CartProvider>();
     final auth = context.read<AuthProvider>();
 
-    final orderId = await _orderService.placeOrder(
+    final result = await _orderService.placeOrder(
       userId: auth.userProfile!.id,
       items: cart.items,
       subtotal: cart.subtotal,
@@ -71,22 +71,26 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
     setState(() => _isLoading = false);
 
-    if (orderId != null && mounted) {
+    if (result['success'] == true && mounted) {
       cart.clear();
       // Refresh orders list so the new order appears in Orders tab
       context.read<OrderProvider>().loadOrders(auth.userProfile!.id);
-      _showSuccessDialog(orderId);
+      _showSuccessDialog(
+        result['orderId'] as String,
+        result['orderNumber'] as String?,
+      );
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to place order. Please try again.'),
+        SnackBar(
+          content: Text(result['error']?.toString() ?? 'Failed to place order. Please try again.'),
           backgroundColor: AppTheme.errorColor,
         ),
       );
     }
   }
 
-  void _showSuccessDialog(String orderId) {
+  void _showSuccessDialog(String orderId, String? orderNumber) {
+    final displayId = orderNumber ?? orderId.substring(0, 8).toUpperCase();
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -128,7 +132,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   const Icon(Icons.receipt, size: 16, color: AppTheme.primaryColor),
                   const SizedBox(width: 8),
                   Text(
-                    'Order ID: ${orderId.substring(0, 8).toUpperCase()}',
+                    'Order: $displayId',
                     style: const TextStyle(
                       color: AppTheme.primaryColor,
                       fontWeight: FontWeight.w600,

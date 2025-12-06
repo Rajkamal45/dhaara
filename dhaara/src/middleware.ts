@@ -8,6 +8,9 @@ const authRoutes = ['/login', '/register', '/verify-otp', '/forgot-password', '/
 const adminRoutes = ['/admin']
 const logisticsRoutes = ['/logistics']
 
+// Routes accessible by all authenticated users (admin, logistics, customers)
+const sharedRoutes = ['/invoice']
+
 // Routes that require KYC approval for customers
 const kycRequiredRoutes = ['/cart', '/checkout', '/my-orders']
 
@@ -55,6 +58,7 @@ export async function middleware(request: NextRequest) {
   const isAuthRoute = authRoutes.some(route => pathname.startsWith(route))
   const isAdminRoute = adminRoutes.some(route => pathname.startsWith(route))
   const isLogisticsRoute = logisticsRoutes.some(route => pathname.startsWith(route))
+  const isSharedRoute = sharedRoutes.some(route => pathname.startsWith(route))
   const requiresKYC = kycRequiredRoutes.some(route => pathname.startsWith(route))
 
   // ========================================
@@ -147,9 +151,17 @@ export async function middleware(request: NextRequest) {
   }
 
   // ========================================
-  // 6. CUSTOMER/USER ROUTES
+  // 6. SHARED ROUTES (invoice, etc.) - accessible by all authenticated users
   // ========================================
-  
+  if (isSharedRoute) {
+    // Allow all authenticated users (admin, logistics, customers) to access
+    return response
+  }
+
+  // ========================================
+  // 7. CUSTOMER/USER ROUTES
+  // ========================================
+
   // Admins trying to access customer pages - redirect to admin dashboard
   if (profile.role === 'admin') {
     return NextResponse.redirect(new URL('/admin/dashboard', request.url))

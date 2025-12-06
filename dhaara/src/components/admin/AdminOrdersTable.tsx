@@ -3,12 +3,12 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
-import { 
-  Package, 
-  Clock, 
-  CheckCircle, 
-  Truck, 
-  XCircle, 
+import {
+  Package,
+  Clock,
+  CheckCircle,
+  Truck,
+  XCircle,
   Eye,
   Loader2,
   PackageCheck,
@@ -26,8 +26,10 @@ import {
   MoreVertical,
   CreditCard,
   Calendar,
-  Building
+  Building,
+  FileText
 } from 'lucide-react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useToast } from '@/hooks/useToast'
@@ -647,6 +649,14 @@ export default function AdminOrdersTable({ orders }: { orders: Order[] }) {
                               <Eye className="h-4 w-4" />
                             </Button>
 
+                            {order.status === 'delivered' && (
+                              <Link href={`/invoice/${order.id}`} target="_blank">
+                                <Button size="sm" variant="outline" className="text-green-600 border-green-200 hover:bg-green-50">
+                                  <FileText className="h-4 w-4" />
+                                </Button>
+                              </Link>
+                            )}
+
                             {getNextStatus(order.status) && !order.assigned_to && (
                               <Button
                                 size="sm"
@@ -873,6 +883,18 @@ export default function AdminOrdersTable({ orders }: { orders: Order[] }) {
                 <span className="font-semibold">Total Amount</span>
                 <span className="text-2xl font-bold text-green-600">₹{viewingOrder.total_amount}</span>
               </div>
+
+              {/* Download Invoice - Only for delivered orders */}
+              {viewingOrder.status === 'delivered' && (
+                <div className="mb-6">
+                  <Link href={`/invoice/${viewingOrder.id}`} target="_blank">
+                    <Button className="w-full bg-green-600 hover:bg-green-700">
+                      <FileText className="h-4 w-4 mr-2" />
+                      Download Invoice
+                    </Button>
+                  </Link>
+                </div>
+              )}
 
               {/* Actions */}
               <div className="space-y-4">
